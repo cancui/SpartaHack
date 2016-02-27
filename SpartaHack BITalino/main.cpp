@@ -45,10 +45,13 @@ int initLength = 10;
 int touchSensorAverage = 0;
 BITalino::VFrame frames(10); //DEFAULTED TO 100!!! Check documentation
 BITalino::Frame* f;// = &frames[0];
+BITalino::Frame g;
 //BITalino::Frame f;
 
 bool updateTrigger = false;
 BITalino::Vbool outputs = { 0,0,0,0 };
+
+int sleepCount = 0;
 
 void wait(unsigned int waitTime) {
 	time_t now = clock();
@@ -142,6 +145,33 @@ void checkFaceplant3(BITalino & bit) {
 	}
 }
 
+void checkFaceplant4(BITalino & bit) {
+	//bool done = false;
+	while (true) {
+		int recentReading = g.analog[PRESSURE_SENSOR];
+		time_t start = clock();
+		while (abs(touchSensorAverage - recentReading) > 200) {
+			recentReading = g.analog[PRESSURE_SENSOR];
+			if (static_cast<double>(clock() - start) / CLOCKS_PER_SEC > 4) {
+				//std::thread t1(flashOutputs, bit); //flashOutputs(bit)
+				//t1.join();
+				flashOutputs(bit);
+				//done = true;
+
+				sleepCount++;
+				wait(500); //pause not visable in consol because separate thread
+				printf("%d \n", sleepCount);
+				printf("%d \n", sleepCount);
+				printf("%d \n", sleepCount);
+				wait(500); //pause not visable in consol because separate thread
+
+				//break;//?
+				
+			}
+		}
+	}
+}
+
 
 void interfacer(BITalino & bit) { //For bridging thread. Thread updates sensor data, senses certain variables to trigger output
 	
@@ -216,7 +246,8 @@ int main() {
 	  //std::thread checkFaceplantThread(checkFaceplant, dev, touchSensorAverage);
 	  //checkFaceplantThread.join();
 
-	  //std::thread t1(interfacer, dev);
+	  
+
 
 	  for (int i = 0; i < initLength; i++) {
 		  dev.read(frames);
@@ -227,20 +258,31 @@ int main() {
 	  touchSensorAverage = touchSensorAverage / initLength;
 	  printf("\n %d", touchSensorAverage);
 
+	  std::thread t1(checkFaceplant4, dev);
+	  
 	  do
 	  {
 		  dev.read(frames); // get 100 frames from device
 		  /*const BITalino::Frame & */f = &frames[0];  // get a reference to the first frame of each 100 frames block
+		  g = frames[0]; 
 		  
 		  //printf("%d : %d %d %d %d ; %d %d %d %d %d %d\n",   // dump the first frame
 			 // f.seq,
 			 // f.digital[0], f.digital[1], f.digital[2], f.digital[3],
 			 // f.analog[0], f.analog[1], f.analog[2], f.analog[3], f.analog[4], f.analog[5]);
 
-		  printf("%d : %d %d %d %d ; %d %d %d %d %d %d\n",   // dump the first frame
-			  f->seq,
-			  f->digital[0], f->digital[1], f->digital[2], f->digital[3],
-			  f->analog[0], f->analog[1], f->analog[2], f->analog[3], f->analog[4], f->analog[5]);
+
+
+
+		  //printf(/*%d : */ "%d %d %d %d ; %d %d %d %d %d %d\n",   // dump the first frame
+			 // //f->seq,
+			 // f->digital[0], f->digital[1], f->digital[2], f->digital[3],
+			 // f->analog[0], f->analog[1], f->analog[2], f->analog[3], f->analog[4], f->analog[5]);
+
+		  printf(/*%d : */ "%d %d %d %d ; %d %d %d %d %d %d\n",   // dump the first frame
+																  //f->seq,
+			  g.digital[0], g.digital[1], g.digital[2], g.digital[3],
+			  g.analog[0], g.analog[1], g.analog[2], g.analog[3], g.analog[4], g.analog[5]);
 
 		  if (updateTrigger) {
 			  dev.trigger(outputs); //PROBLEM LINE, NOT TO BE CALLED EVERY TIME
