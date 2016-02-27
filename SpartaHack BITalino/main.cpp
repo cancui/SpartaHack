@@ -12,6 +12,7 @@
 #include <iostream>
 #include <cmath>
 #include <ctime>
+#include <thread>
 
 bool keypressed(void)
 {
@@ -37,7 +38,33 @@ bool keypressed(void)
 
 #endif
 
-#define PRESSURE_SENSOR 0
+#define PRESSURE_SENSOR 3
+
+void flashOutputs(BITalino & bit) {
+	for (int i = 0; i < 6; i++) {
+		bit.trigger({ 1,1,1,1 });
+		time_t now = clock();
+		while (clock() - now < 200) {}
+		bit.trigger({ 0,0,0,0 });
+		while (clock() - now < 200) {}
+	}
+}
+
+void checkFaceplant(BITalino & bit, int avg) {
+	BITalino::VFrame frames(100);
+	while (true) /*COME UP WITH CONDITION, NO INFINITE LOOPS*/ {
+		bit.read(frames);
+		time_t start = clock();
+		while (abs(avg - frames[0].analog[PRESSURE_SENSOR]) > 100) {
+			bit.read(frames);
+			if (static_cast<double>(clock() - start) / CLOCKS_PER_SEC > 2) {
+				std::thread t1(flashOutputs, bit); //flashOutputs(bit)
+				t1.join();
+				return;
+			}
+		}
+	}
+}
 
 int main()
 {
@@ -59,7 +86,7 @@ int main()
 	  int initLength = 10;
 	  int touchSensorAverage = 0;
 	  for (int i = 0; i < initLength; i++) {
-		  BITalino::VFrame frames(1000);
+		  BITalino::VFrame frames(400);
 		  dev.read(frames);
 		  touchSensorAverage += frames[0].analog[PRESSURE_SENSOR];
 		  printf("%d\n", frames[0].analog[PRESSURE_SENSOR]);
@@ -73,6 +100,27 @@ int main()
 
       BITalino::VFrame frames(100); // initialize the frames vector with 100 frames 
 
+	  std::thread checkFaceplantThread(checkFaceplant, dev, touchSensorAverage);
+
+	  do
+	  {
+		  dev.read(frames); // get 100 frames from device
+		  const BITalino::Frame &f = frames[0];  // get a reference to the first frame of each 100 frames block
+		  
+		  printf("%d : %d %d %d %d ; %d %d %d %d %d %d\n",   // dump the first frame
+			  f.seq,
+			  f.digital[0], f.digital[1], f.digital[2], f.digital[3],
+			  f.analog[0], f.analog[1], f.analog[2], f.analog[3], f.analog[4], f.analog[5]);
+
+
+	  } while (!keypressed()); // until a key is pressed
+
+	  checkFaceplantThread.join();
+
+
+
+
+	  /*
       do
       {
          dev.read(frames); // get 100 frames from device
@@ -82,9 +130,13 @@ int main()
                 f.digital[0], f.digital[1], f.digital[2], f.digital[3],
                 f.analog[0], f.analog[1], f.analog[2], f.analog[3], f.analog[4], f.analog[5]);
 
-
-
       } while (!keypressed()); // until a key is pressed
+	  */
+
+
+
+
+
 
       dev.stop(); // stop acquisition
    } // dev is destroyed here (it goes out of scope)
