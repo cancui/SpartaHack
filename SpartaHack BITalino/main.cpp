@@ -39,30 +39,29 @@ bool keypressed(void)
 
 #define ACC_X_SENSOR 0
 #define ACC_Y_SENSOR 1
-#define ACC_Z_SENSOR 2
+#define ACC_Z_SENSOR 4
 #define PRESSURE_SENSOR 3
-#define EDA_SENSOR 4
+#define EDA_SENSOR 2
 
 int initLength = 10;
 int touchSensorAverage = 0;
-BITalino::VFrame frames(10); //DEFAULTED TO 100!!! Check documentation
-BITalino::Frame* f;// = &frames[0];
+BITalino::VFrame frames(10); 
 BITalino::Frame g;
 
 bool updateTrigger = false;
 BITalino::Vbool outputs = { 0,0,0,0 };
 
-
+bool deviceOn = true;
 
 //accelerometer
 int xAvg = 0, yAvg = 0, zAvg = 0;
 int x, y, z;
-
+int xV, yV, zV; //velocities, from integrating acceleration
+int xD, yD, zD; //displacements, from integration acceleration
 
 //EDA        
 int EDAaverage = 0;                // the average
 int EDAvalue;
-
 
 int sleepCount = 0;
 
@@ -72,16 +71,16 @@ void wait(unsigned int waitTime) {
 }
 
 void wakeLight(BITalino & bit) { //mild... 2x short
-	for (int i = 0; i < 2; i++) {
+	for (int i = 0; i < 3; i++) {
 		bit.trigger({ 0,0,1,1 });
-		wait(50);
+		wait(30);
 		bit.trigger({ 0,0,0,0 });
-		wait(50);
+		wait(30);
 	}
 }
 
 void wakeModerate(BITalino & bit) { //moderate 2x medium length
-	for (int i = 0; i < 2; i++) {
+	for (int i = 0; i < 3; i++) {
 		bit.trigger({ 0,0,1,1 });
 		wait(150);
 		bit.trigger({ 0,0,0,0 });
@@ -94,7 +93,16 @@ void wakeStrong(BITalino & bit) { //heavy
 		bit.trigger({ 1,1,1,1 });
 		wait(250);
 		bit.trigger({ 0,0,0,0 });
-		wait(250);
+		wait(50);
+	}
+}
+
+void wakeStrongest(BITalino & bit) { //heaviest
+	for (int i = 0; i < 4; i++) {
+		bit.trigger({ 1,1,1,1 });
+		wait(350);
+		bit.trigger({ 0,0,0,0 });
+		wait(100);
 	}
 }
 
@@ -105,9 +113,13 @@ void wake(BITalino & bit) {
 	else if (sleepCount < 3) {
 		wakeModerate(bit);
 	}
-	else {
+	else  if (sleepCount < 4) {
 		wakeStrong(bit);
 	}
+	else {
+		wakeStrongest(bit);
+	}
+	wait(50);
 }
 
 void flashOutputs(BITalino & bit) {
@@ -146,38 +158,75 @@ void flashOutputs3(BITalino & bit) {
 }
 
 void MonitorEDA(BITalino & bit) {
-	while (true) {
+	while (deviceOn) {
 		EDAvalue = g.analog[EDA_SENSOR];
 		
-		if (EDAvalue - EDAaverage > 10) {
+		if (EDAvalue - EDAaverage > 50) {
 			wait(100);
 			EDAvalue = g.analog[EDA_SENSOR];
-			if (EDAvalue - EDAaverage > 10) {
-				wake(bit);
+			if (EDAvalue - EDAaverage > 50) {
+				wait(100);
+				EDAvalue = g.analog[EDA_SENSOR];
+				if (EDAvalue - EDAaverage > 50) {
+					wake(bit);
+				}
 			}
 		}
-		wait(100);
+		wait(300);
 		EDAvalue = g.analog[EDA_SENSOR];
 	}
 }
 
+void MonitorAccelerometer(BITalino & bit) {
+	while (deviceOn) {
+
+		//needs vector implementation
+		x = g.analog[ACC_X_SENSOR] - xAvg;
+		y = g.analog[ACC_Y_SENSOR] - yAvg;
+		z = g.analog[ACC_Z_SENSOR] - zAvg;
+
+		wait(2);
+
+		int x0 = g.analog[ACC_X_SENSOR] - xAvg;
+		int y0 = g.analog[ACC_Y_SENSOR] - yAvg;
+		int z0 = g.analog[ACC_Z_SENSOR] - zAvg;
+
+		xV += x0 - x;
+		yV += y0 - y;
+		zV += z0 - z;
+
+		wait(1);
+
+		int x1 = g.analog[ACC_X_SENSOR] - xAvg;
+		int y1 = g.analog[ACC_Y_SENSOR] - yAvg;
+		int z1 = g.analog[ACC_Z_SENSOR] - zAvg;
+
+		int xV0 = x1 - x0;
+		int yV0 = y1 - y0;
+		int zV0 = z1 - z0;
+
+		xD += xV0 - xV;
+		yD += yV0 - yV;
+		zD += zV0 - zV;
+
+		//print acceleration, velocity, and displacement
+		printf("ax:%d ay:&d az:%d | vx:%d vy:%d vz:%d | dx:%d dy:%d dz:%d \n",
+			x, y, z, xV, yV, zV, xD, yD, zD);
+
+	}
+}
+
 void checkFaceplant4(BITalino & bit) { 
-	while (true) {
+	while (deviceOn) {
 		int recentReading = g.analog[PRESSURE_SENSOR];
 		time_t start = clock();
 		while (abs(touchSensorAverage - recentReading) > 100) { //trigger a thread?
 			recentReading = g.analog[PRESSURE_SENSOR];
-			if (static_cast<double>(clock() - start) / CLOCKS_PER_SEC > 4) {
+			if (static_cast<double>(clock() - start) / CLOCKS_PER_SEC > 3) {
 				//user has fallen asleep 
-				
 				wake(bit);
-
-				//std::thread t1(flashOutputs, bit); //flashOutputs(bit)
-				//t1.join();
-				//flashOutputs(bit); //on a thread?
-				//done = true;
-
 				sleepCount++;
+
 				wait(500); //pause not visable in consol because separate thread
 				printf("%d \n", sleepCount);
 				printf("%d \n", sleepCount);
@@ -222,9 +271,13 @@ int main() {
 		  yAvg += frames[0].analog[ACC_Y_SENSOR];
 		  zAvg += frames[0].analog[ACC_Z_SENSOR];
 
+		  /*
 		  printf("accX: %d   accY: %d   accZ: %d   touch: %d   EDA: %d   ECG: %d\n", 
 			  frames[0].analog[ACC_X_SENSOR], frames[0].analog[ACC_Y_SENSOR], frames[0].analog[ACC_Z_SENSOR], 
-			  frames[0].analog[PRESSURE_SENSOR], frames[0].analog[EDA_SENSOR]);
+			  frames[0].analog[PRESSURE_SENSOR], frames[0].analog[EDA_SENSOR]); */
+
+		  printf("pressure:%d   EDA:%d \n", frames[0].analog[PRESSURE_SENSOR], frames[0].analog[EDA_SENSOR]);
+
 		  wait(100);
 	  }
 
@@ -235,8 +288,10 @@ int main() {
 	  yAvg = yAvg / initLength;
 	  zAvg = zAvg / initLength;
 
-	  printf("\n Touch Average: %d \n EDA Average: %d \n ", touchSensorAverage, EDAaverage);
-	  printf("\n xAvg: %d \n yAvg: %d \n ECG zAvg: %d \n", xAvg, yAvg, zAvg);
+	  printf("\n Pressure Average: %d EDA Average: %d \n ", touchSensorAverage, EDAaverage);
+
+	  wait(400);
+	  //printf("\n xAvg: %d \n yAvg: %d \n ECG zAvg: %d \n", xAvg, yAvg, zAvg);
 
 	  //monitor for faceplant
 	  std::thread t1(checkFaceplant4, dev);
@@ -245,18 +300,20 @@ int main() {
 	  std::thread t2(MonitorEDA, dev);
 
 	  //monitor accelerometer
-	  //the thread here
+	  //std::thread t3(MonitorAccelerometer, dev);
 
 	  //Begin active data acquisition
 	  do {
 		  dev.read(frames); 
-		  f = &frames[0]; 
 		  g = frames[0]; 
 		  
-		  printf(/*%d : */ "%d %d %d %d ; %d %d %d %d %d %d\n",   
-			  //f->seq,
-			  g.digital[0], g.digital[1], g.digital[2], g.digital[3],
-			  g.analog[0], g.analog[1], g.analog[2], g.analog[3], g.analog[4], g.analog[5]);
+		  /*
+		  printf("%d %d %d %d ; %d %d %d %d %d %d\n",   
+			 //f->seq,
+			 g.digital[0], g.digital[1], g.digital[2], g.digital[3],
+			 g.analog[0], g.analog[1], g.analog[2], g.analog[3], g.analog[4], g.analog[5]); */
+
+		  printf("Pressure:%d    EDA:%d\n", g.analog[PRESSURE_SENSOR], g.analog[EDA_SENSOR]);
 
 		  if (updateTrigger) {
 			  dev.trigger(outputs); //PROBLEM LINE, NOT TO BE CALLED EVERY TIME
@@ -264,10 +321,12 @@ int main() {
 			  updateTrigger = false;
 		  }
 
-	  } while (!keypressed()); // until a key is pressed
+	  } while (!keypressed()); 
 
+	  deviceOn = false;
 	  t1.join();
 	  t2.join();
+	  //t3.join();
 
       dev.stop(); // stop acquisition
    } catch (BITalino::Exception &e) {
@@ -275,4 +334,4 @@ int main() {
    }
    
    return 0;
-}
+} 
