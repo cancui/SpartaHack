@@ -1,8 +1,11 @@
-﻿Build started 2016-02-27 5:26:42 PM.
+﻿Build started 2016-02-27 10:31:17 PM.
      1>Project "C:\Users\Can\Documents\SpartaHack\SpartaHack BITalino\SpartaHack BITalino.vcxproj" on node 2 (Build target(s)).
      1>ClCompile:
          C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\bin\CL.exe /c /ZI /nologo /W3 /WX- /sdl /Od /Oy- /D _MBCS /Gm /EHsc /RTC1 /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /Zc:inline /Fo"Debug\\" /Fd"Debug\vc140.pdb" /Gd /TP /analyze- /errorReport:prompt main.cpp
          main.cpp
+     1>c:\users\can\documents\spartahack\spartahack bitalino\main.cpp(227): warning C4473: 'printf' : not enough arguments passed for format string
+         c:\users\can\documents\spartahack\spartahack bitalino\main.cpp(227): note: placeholders and their parameters expect 6 variadic arguments, but 5 were provided
+         c:\users\can\documents\spartahack\spartahack bitalino\main.cpp(227): note: the missing variadic argument 6 is required by format string '%d'
        Link:
          C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\bin\link.exe /ERRORREPORT:PROMPT /OUT:"C:\Users\Can\Documents\SpartaHack\SpartaHack BITalino\Debug\SpartaHack BITalino.exe" /INCREMENTAL /NOLOGO ws2_32.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /MANIFEST /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /manifest:embed /Debug /PDB:"C:\Users\Can\Documents\SpartaHack\SpartaHack BITalino\Debug\SpartaHack BITalino.pdb" /TLBID:1 /DYNAMICBASE /NXCOMPAT /IMPLIB:"C:\Users\Can\Documents\SpartaHack\SpartaHack BITalino\Debug\SpartaHack BITalino.lib" /MACHINE:X86 Debug\bitalino.obj
          Debug\main.obj
@@ -11,4 +14,4 @@
 
 Build succeeded.
 
-Time Elapsed 00:00:01.81
+Time Elapsed 00:00:01.44

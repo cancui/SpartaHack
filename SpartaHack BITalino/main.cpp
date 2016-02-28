@@ -37,7 +37,11 @@ bool keypressed(void)
 
 #endif
 
+#define ACC_X_SENSOR 0
+#define ACC_Y_SENSOR 1
+#define ACC_Z_SENSOR 2
 #define PRESSURE_SENSOR 3
+#define EDA_SENSOR 4
 
 int initLength = 10;
 int touchSensorAverage = 0;
@@ -48,11 +52,62 @@ BITalino::Frame g;
 bool updateTrigger = false;
 BITalino::Vbool outputs = { 0,0,0,0 };
 
+
+
+//accelerometer
+int xAvg = 0, yAvg = 0, zAvg = 0;
+int x, y, z;
+
+
+//EDA        
+int EDAaverage = 0;                // the average
+int EDAvalue;
+
+
 int sleepCount = 0;
 
 void wait(unsigned int waitTime) {
 	time_t now = clock();
 	while (clock() - now < waitTime);
+}
+
+void wakeLight(BITalino & bit) { //mild... 2x short
+	for (int i = 0; i < 2; i++) {
+		bit.trigger({ 0,0,1,1 });
+		wait(50);
+		bit.trigger({ 0,0,0,0 });
+		wait(50);
+	}
+}
+
+void wakeModerate(BITalino & bit) { //moderate 2x medium length
+	for (int i = 0; i < 2; i++) {
+		bit.trigger({ 0,0,1,1 });
+		wait(150);
+		bit.trigger({ 0,0,0,0 });
+		wait(150);
+	}
+}
+
+void wakeStrong(BITalino & bit) { //heavy 
+	for (int i = 0; i < 3; i++) {
+		bit.trigger({ 1,1,1,1 });
+		wait(250);
+		bit.trigger({ 0,0,0,0 });
+		wait(250);
+	}
+}
+
+void wake(BITalino & bit) {
+	if (sleepCount < 2) {
+		wakeLight(bit);
+	}
+	else if (sleepCount < 3) {
+		wakeModerate(bit);
+	}
+	else {
+		wakeStrong(bit);
+	}
 }
 
 void flashOutputs(BITalino & bit) {
@@ -81,6 +136,31 @@ void flashOutputs2(BITalino & bit) {
 	outputs = temp;
 }
 
+void flashOutputs3(BITalino & bit) {
+	for (int i = 0; i < 6; i++) {
+		bit.trigger({ 0,0,0,1 });
+		wait(50);
+		bit.trigger({ 0,0,0,0 });
+		wait(50);
+	}
+}
+
+void MonitorEDA(BITalino & bit) {
+	while (true) {
+		EDAvalue = g.analog[EDA_SENSOR];
+		
+		if (EDAvalue - EDAaverage > 10) {
+			wait(100);
+			EDAvalue = g.analog[EDA_SENSOR];
+			if (EDAvalue - EDAaverage > 10) {
+				wake(bit);
+			}
+		}
+		wait(100);
+		EDAvalue = g.analog[EDA_SENSOR];
+	}
+}
+
 void checkFaceplant4(BITalino & bit) { 
 	while (true) {
 		int recentReading = g.analog[PRESSURE_SENSOR];
@@ -90,9 +170,11 @@ void checkFaceplant4(BITalino & bit) {
 			if (static_cast<double>(clock() - start) / CLOCKS_PER_SEC > 4) {
 				//user has fallen asleep 
 				
+				wake(bit);
+
 				//std::thread t1(flashOutputs, bit); //flashOutputs(bit)
 				//t1.join();
-				flashOutputs(bit); //on a thread?
+				//flashOutputs(bit); //on a thread?
 				//done = true;
 
 				sleepCount++;
@@ -100,7 +182,8 @@ void checkFaceplant4(BITalino & bit) {
 				printf("%d \n", sleepCount);
 				printf("%d \n", sleepCount);
 				printf("%d \n", sleepCount);
-				wait(500); //pause not visable in consol because separate thread		
+				wait(500); //pause not visable in consol because separate thread
+				recentReading = g.analog[PRESSURE_SENSOR];
 			}
 		}
 	}
@@ -123,23 +206,48 @@ int main() {
       dev.start(1000, {0, 1, 2, 3, 4, 5});   // start acquisition of all channels at 1000 Hz
 	  // END OF PRE-INITIALIZATION
 
-	  flashOutputs(dev);
+	  flashOutputs3(dev);
 
-	  dev.trigger({ 1,1,1,1 });
+	  dev.trigger({ 0,0,0,1 });
 	  std::string go; std::cin >> go;
 	  dev.trigger({ 0,0,0,0 });
 
+	  //Calibration
 	  for (int i = 0; i < initLength; i++) {
 		  dev.read(frames);
 		  touchSensorAverage += frames[0].analog[PRESSURE_SENSOR];
-		  printf("%d\n", frames[0].analog[PRESSURE_SENSOR]);
+		  EDAaverage += frames[0].analog[EDA_SENSOR];
+
+		  xAvg += frames[0].analog[ACC_X_SENSOR];
+		  yAvg += frames[0].analog[ACC_Y_SENSOR];
+		  zAvg += frames[0].analog[ACC_Z_SENSOR];
+
+		  printf("accX: %d   accY: %d   accZ: %d   touch: %d   EDA: %d   ECG: %d\n", 
+			  frames[0].analog[ACC_X_SENSOR], frames[0].analog[ACC_Y_SENSOR], frames[0].analog[ACC_Z_SENSOR], 
+			  frames[0].analog[PRESSURE_SENSOR], frames[0].analog[EDA_SENSOR]);
 		  wait(100);
 	  }
-	  touchSensorAverage = touchSensorAverage / initLength;
-	  printf("\n %d", touchSensorAverage);
 
+	  touchSensorAverage = touchSensorAverage / initLength;
+	  EDAaverage = EDAaverage / initLength;
+
+	  xAvg = xAvg / initLength;
+	  yAvg = yAvg / initLength;
+	  zAvg = zAvg / initLength;
+
+	  printf("\n Touch Average: %d \n EDA Average: %d \n ", touchSensorAverage, EDAaverage);
+	  printf("\n xAvg: %d \n yAvg: %d \n ECG zAvg: %d \n", xAvg, yAvg, zAvg);
+
+	  //monitor for faceplant
 	  std::thread t1(checkFaceplant4, dev);
 	  
+	  //monitor EDA
+	  std::thread t2(MonitorEDA, dev);
+
+	  //monitor accelerometer
+	  //the thread here
+
+	  //Begin active data acquisition
 	  do {
 		  dev.read(frames); 
 		  f = &frames[0]; 
@@ -159,6 +267,7 @@ int main() {
 	  } while (!keypressed()); // until a key is pressed
 
 	  t1.join();
+	  t2.join();
 
       dev.stop(); // stop acquisition
    } catch (BITalino::Exception &e) {
