@@ -243,7 +243,7 @@ int main() {
 	  // INITIALIZATION STUFF
       puts("Connecting to device...");
   
-	  BITalino dev("98:D3:31:B2:BB:BF"); 
+	  BITalino dev("98:D3:31:20:55:42");  //98:D3:31:20:55:42 is backup, 98:D3:31:B2:BB:BF is original
       puts("Connected to device. Press Enter to exit.");
 
       std::string ver = dev.version();    // get device version string
