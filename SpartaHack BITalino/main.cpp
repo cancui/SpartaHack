@@ -18,7 +18,7 @@ bool keypressed(void)
 	return (_kbhit() != 0);
 }
 
-#else // Linux or Mac OS
+#else 
 
 #include <sys/select.h>
 
@@ -37,6 +37,7 @@ bool keypressed(void)
 
 #endif
 
+//device pins
 #define ACC_X_SENSOR 0
 #define ACC_Y_SENSOR 1
 #define ACC_Z_SENSOR 4
@@ -178,8 +179,8 @@ void MonitorEDA(BITalino & bit) {
 }
 
 void MonitorAccelerometer(BITalino & bit) {
+	//loop executed by accelerometer thread
 	while (deviceOn) {
-
 		//needs vector implementation
 		x = g.analog[ACC_X_SENSOR] - xAvg;
 		y = g.analog[ACC_Y_SENSOR] - yAvg;
