@@ -25,4 +25,4 @@ In the future, we would like to leverage the accelerometer which we had already 
 
 
 ###Here is a rough photo of our handband in action:
-![alt text](https://drive.google.com/file/d/0B62_L9bQxhRMZF9ZMzA1bTFmRW8/view?usp=sharing "Rohan 1")
+![alt text]( https://github.com/cancui/SpartaHack/blob/master/IMG_20160228_101805.jpg "Rohan 1")
