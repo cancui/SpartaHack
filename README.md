@@ -22,3 +22,7 @@ When either thread determines that the user is falling asleep, a waking function
 
 ##Future Improvement
 In the future, we would like to leverage the accelerometer which we had already implemented at the hardware level in order to monitor for other signs of falling asleep, like head swaying. This would be done using a combination of acceleration and displacement data. In fact, the code to calculate displacement from analog accelerometer signals is already written as well. The challenge would be to develop an algorithm to analyse the data for features indicating the user is falling asleep. A machine learning grouping algorithm may have application here. 
+
+
+###Here is a rough photo of our handband in action:
+![alt text](https://drive.google.com/file/d/0B62_L9bQxhRMZF9ZMzA1bTFmRW8/view?usp=sharing "Rohan 1")
